@@ -1,0 +1,26 @@
+# 📊 Trade Info Scraper
+
+Scrapes images and text signals from PriceSync and stores them in:
+- `/images/` folder
+- `post_log.csv` (CSV)
+- `signals.db` (SQLite)
+
+## ✅ Features
+
+- Parses title, text, and trading signal (BUY/SELL)
+- Extracts entry, stop-loss, and take-profit
+- Logs post timestamp
+- Saves chart images with symbol + title in filename
+- Shows summary stats (BUY/SELL count)
+
+## 📦 Setup
+
+```bash
+# Clone repo
+git clone https://github.com/Minionjack/Trading.git
+cd Trading
+
+# Copy or create virtual environment
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt

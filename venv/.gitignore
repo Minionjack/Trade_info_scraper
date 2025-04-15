@@ -1,0 +1,17 @@
+# Ignore the virtual environment
+venv/
+
+# Ignore Python cache files
+__pycache__/
+*.pyc
+
+# Ignore scraped images and logs
+images/
+post_log.csv
+signals.db
+
+# Allow everything else (scripts, README, etc.)
+!Image_and_text_scraper.py
+!run.sh
+!README.md
+!requirements.txt
