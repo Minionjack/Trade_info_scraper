@@ -15,8 +15,8 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
 # === Configuration ===
-EMAIL = "N.b.gonzalo@gmail.com"
-PASSWORD = "Olaolaola-2121"
+EMAIL = "**********"
+PASSWORD = "*******"
 CSV_FILE = "post_log.csv"
 DB_FILE = "signals.db"
 IMAGE_DIR = "images"
