@@ -13,6 +13,8 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from telegram import Bot
+from telegram.error import TelegramError
 
 # === Configuration ===
 EMAIL = "**********"
@@ -20,8 +22,13 @@ PASSWORD = "*******"
 CSV_FILE = "post_log.csv"
 DB_FILE = "signals.db"
 IMAGE_DIR = "images"
+TELEGRAM_BOT_TOKEN = "YOUR_BOT_TOKEN"  # Replace with your bot token
+TELEGRAM_CHAT_ID = "YOUR_CHAT_ID"      # Replace with your chat ID
 
 os.makedirs(IMAGE_DIR, exist_ok=True)
+
+# Initialize Telegram bot
+bot = Bot(token=TELEGRAM_BOT_TOKEN)
 
 # === Chrome WebDriver Setup ===
 options = Options()
@@ -120,8 +127,12 @@ def parse_signal(text, image_path=None):
 
 # === Check if image already exists ===
 def image_already_saved(image_url):
-    image_id = str(hash(image_url)) + ".png"
-    return os.path.exists(os.path.join(IMAGE_DIR, image_id))
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute("SELECT COUNT(*) FROM signals WHERE image_url = ?", (image_url,))
+    count = c.fetchone()[0]
+    conn.close()
+    return count > 0
 
 # === Save to CSV ===
 def log_to_csv(data):
@@ -159,6 +170,31 @@ def print_stats():
     for row in rows:
         print(f"{row[0]}: {row[1]}")
     conn.close()
+
+# === Send Telegram Notification ===
+def send_telegram_notification(post_data):
+    try:
+        message = f"""
+🔔 New Trade Signal Detected!
+
+📊 Symbol: {post_data['symbol'] or 'N/A'}
+📈 Direction: {post_data['direction'] or 'N/A'}
+💰 Entry: {post_data['entry'] or 'N/A'}
+🛑 Stop Loss: {post_data['stop_loss'] or 'N/A'}
+🎯 Take Profit: {post_data['take_profit'] or 'N/A'}
+⚠️ Risk Trigger: {post_data['risk_trigger'] or 'N/A'}
+
+📝 Title: {post_data['title']}
+⏰ Time: {post_data['post_time']}
+"""
+        bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message)
+        
+        # Send the image if available
+        if post_data['image_path'] and os.path.exists(post_data['image_path']):
+            with open(post_data['image_path'], 'rb') as photo:
+                bot.send_photo(chat_id=TELEGRAM_CHAT_ID, photo=photo)
+    except TelegramError as e:
+        print(f"[{datetime.now()}] ❌ Failed to send Telegram notification: {str(e)}")
 
 # === Scrape all posts ===
 def scrape_all_posts():
@@ -228,13 +264,33 @@ def scrape_all_posts():
 
         log_to_csv(post_data)
         insert_to_db(post_data)
+        send_telegram_notification(post_data)  # Send Telegram notification for new posts
 
 # === MAIN ===
 if __name__ == "__main__":
     try:
         init_db()
         login()
-        scrape_all_posts()
-        print_stats()
+        
+        print(f"[{datetime.now()}] 🔄 Starting continuous monitoring...")
+        while True:
+            try:
+                scrape_all_posts()
+                print_stats()
+                print(f"[{datetime.now()}] ⏳ Waiting 60 seconds before next check...")
+                time.sleep(60)
+            except Exception as e:
+                print(f"[{datetime.now()}] ❌ Error during monitoring: {str(e)}")
+                print("🔄 Attempting to recover...")
+                try:
+                    driver.quit()
+                    driver = webdriver.Chrome(service=Service(), options=options)
+                    login()
+                except Exception as recovery_error:
+                    print(f"[{datetime.now()}] ❌ Recovery failed: {str(recovery_error)}")
+                    print("🔄 Waiting 60 seconds before retrying...")
+                    time.sleep(60)
+    except KeyboardInterrupt:
+        print("\n👋 Stopping monitoring...")
     finally:
         driver.quit()
